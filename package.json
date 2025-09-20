@@ -1,0 +1,30 @@
+{
+  "name": "house-scraper",
+  "version": "0.0.0",
+  "author": "xandjiji <xandjiji@gmail.com>",
+  "description": "Scraper para coletar dados de casas do site oficial do Tibia",
+  "license": "Unlicense",
+  "scripts": {
+    "clean": "rm -rf .turbo && rm -rf node_modules",
+    "lint": "eslint src && prettier --check 'src/**/*.{js,ts}'",
+    "format": "prettier --write 'src/**/*.{js,ts}'",
+    "scrap:houses": "NODE_PATH=./src sucrase-node src/Scripts/ScrapHouses/run.ts",
+    "dev": "serve -l 5556 Output"
+  },
+  "dependencies": {
+    "@types/cheerio": "^0.22.30",
+    "@types/node": "^18.0.0",
+    "@types/node-fetch": "^2.5.12",
+    "@types/user-agents": "^1.0.2",
+    "cheerio": "^1.0.0-rc.10",
+    "dequal": "^2.0.2",
+    "dotenv": "^16.0.3",
+    "form-data": "^4.0.0",
+    "node-fetch": "^2.6.1",
+    "nodemon": "^2.0.15",
+    "serve": "^13.0.2",
+    "sucrase": "^3.20.3",
+    "typescript": "^4.9.0",
+    "user-agents": "^1.0.862"
+  }
+}
