@@ -14,8 +14,12 @@ import * as path from "path";
 const SCRIPT_NAME = coloredText("ScrapHouses", "highlight");
 
 const fetchHousesPageForCity = retryWrapper(
-  async (serverName: string, city: TibiaTown) => {
-    return HttpClient.getHousesPage({ world: serverName, town: city });
+  async (
+    serverName: string,
+    city: TibiaTown,
+    type: "houses" | "guildhalls" | "all" = "all"
+  ) => {
+    return HttpClient.getHousesPage({ world: serverName, town: city, type });
   }
 );
 
@@ -30,19 +34,46 @@ const fetchAllHousesForServer = async (
   const allHouses: HouseObject[] = [];
   const helper = new HouseList();
 
-  // Buscar casas de cada cidade
+  // Buscar casas e guildhalls de cada cidade
   for (const city of TIBIA_CITIES) {
     try {
-      const housesHtml = await fetchHousesPageForCity(serverName, city);
+      // Buscar casas regulares
+      const housesHtml = await fetchHousesPageForCity(
+        serverName,
+        city,
+        "houses"
+      );
       const cityHouses = helper.houses(
         housesHtml,
         serverName,
-        generateServerId(serverName)
+        generateServerId(serverName),
+        false // não é busca específica de guildhalls
       );
 
-      if (cityHouses.length > 0) {
-        allHouses.push(...cityHouses);
-        broadcast(`  📍 ${city}: ${cityHouses.length} casas`, "neutral");
+      // Pequeno delay entre as requisições de casas e guildhalls
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Buscar guildhalls
+      const guildhallsHtml = await fetchHousesPageForCity(
+        serverName,
+        city,
+        "guildhalls"
+      );
+      const cityGuildhalls = helper.houses(
+        guildhallsHtml,
+        serverName,
+        generateServerId(serverName),
+        true // é busca específica de guildhalls
+      );
+
+      const totalFound = cityHouses.length + cityGuildhalls.length;
+
+      if (totalFound > 0) {
+        allHouses.push(...cityHouses, ...cityGuildhalls);
+        broadcast(
+          `  📍 ${city}: ${cityHouses.length} casas + ${cityGuildhalls.length} guildhalls = ${totalFound} total`,
+          "neutral"
+        );
       }
 
       // Pequeno delay entre cidades para não sobrecarregar o servidor

@@ -12,7 +12,8 @@ export default class HouseList {
   private extractHouseData(
     element: cheerio.Element,
     serverName: string,
-    serverId: number
+    serverId: number,
+    isGuildhallSearch: boolean = false
   ): HouseObject | null {
     try {
       const $ = cheerio.load(element);
@@ -69,8 +70,11 @@ export default class HouseList {
       const townInput = formElement.find('input[name="town"]');
       const town = townInput.attr("value") || "Unknown";
 
-      // Detectar se é guildhall (normalmente vem no nome)
+      // Detectar se é guildhall
+      // Se estamos fazendo busca específica de guildhalls, todos os resultados são guildhalls
+      // Caso contrário, verifica pelo nome
       const isGuildhall =
+        isGuildhallSearch ||
         name.toLowerCase().includes("guildhall") ||
         name.toLowerCase().includes("guild");
 
@@ -111,7 +115,12 @@ export default class HouseList {
     return stringToNumber(cleanText.replace("gold", ""));
   }
 
-  houses(content: string, serverName: string, serverId: number): HouseObject[] {
+  houses(
+    content: string,
+    serverName: string,
+    serverId: number,
+    isGuildhallSearch: boolean = false
+  ): HouseObject[] {
     exitIfMaintenance(() => this.errorCheck(content));
 
     const $ = cheerio.load(content);
@@ -123,7 +132,12 @@ export default class HouseList {
     const houses: HouseObject[] = [];
 
     houseRows.each((_, element) => {
-      const house = this.extractHouseData(element, serverName, serverId);
+      const house = this.extractHouseData(
+        element,
+        serverName,
+        serverId,
+        isGuildhallSearch
+      );
       if (house) {
         houses.push(house);
       }
