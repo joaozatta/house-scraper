@@ -74,7 +74,7 @@ npm run scrap:houses
 **Saídas:**
 
 - `Output/servers/[ServerName].json` - Um arquivo por servidor (95 arquivos)
-- **Tempo aproximado:** 30-35 minutos para coleta completa
+- **Tempo aproximado:** 45-60 minutos para coleta completa (incluindo guildhalls)
 - **Volume de dados:** ~88,000 casas, ~927 por servidor
 
 ### Outros Scripts
@@ -201,15 +201,15 @@ npm install
 ### 2. Execução Completa
 
 ```bash
-# Executar scraping completo (todos os servidores e cidades)
-# ⚠️ Duração: ~30-35 minutos
+# Executar scraping completo (todos os servidores e cidades + guildhalls)
+# ⚠️ Duração: ~45-60 minutos
 npm run scrap:houses
 ```
 
 **Output esperado:**
 
 - 95 arquivos JSON em `Output/servers/`
-- ~88,000 casas coletadas
+- ~95,000+ propriedades coletadas (casas + guildhalls)
 - Progresso em tempo real com ETA
 - Estatísticas detalhadas por servidor
 
@@ -311,10 +311,10 @@ npm run format
 
 ### 🚀 Performance e Escala
 
-- **Cobertura completa**: 95 servidores × 19 cidades = 1,805 requests por coleta
-- **Volume de dados**: ~88,000 casas por execução completa
+- **Cobertura completa**: 95 servidores × 19 cidades × 2 tipos = 3,610 requests por coleta
+- **Volume de dados**: ~95,000+ propriedades por execução completa (casas + guildhalls)
 - **Processamento paralelo**: Servidores processados sequencialmente, cidades em batch
-- **Tempo otimizado**: ~30-35 minutos para coleta completa
+- **Tempo otimizado**: ~45-60 minutos para coleta completa (incluindo guildhalls)
 
 ### 🔒 Segurança e Estabilidade
 
@@ -351,8 +351,9 @@ Este scraper é ideal para:
 
 ## 📈 Melhorias Implementadas
 
-- ✅ **Cobertura completa**: De 52 casas para 927 casas por servidor (+1.681%)
+- ✅ **Cobertura completa**: De 52 casas para 927+ casas por servidor (+1.681%)
 - ✅ **Múltiplas cidades**: Todas as 19 cidades do Tibia cobertas
+- ✅ **Guildhalls incluídas**: Busca separada e detecção precisa de guildhalls
 - ✅ **Bypass Cloudflare**: Headers otimizados para estabilidade
 - ✅ **Logging avançado**: Progresso em tempo real com ETA
 - ✅ **Estrutura limpa**: Código otimizado e documentado
