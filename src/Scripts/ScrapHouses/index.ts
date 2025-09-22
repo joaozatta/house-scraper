@@ -26,57 +26,76 @@ const fetchAllHousesForServer = async (
     "neutral"
   );
 
-  const allHouses: HouseObject[] = [];
   const helper = new HouseList();
+  const serverId = generateServerId(serverName);
 
-  // Buscar casas e guildhalls de cada cidade
-  for (const city of TIBIA_CITIES) {
-    try {
-      // Buscar casas regulares
-      const housesHtml = await fetchHousesPageForCity(
-        serverName,
-        city,
-        "houses"
-      );
-      const cityHouses = helper.houses(
-        housesHtml,
-        serverName,
-        generateServerId(serverName),
-        false // não é busca específica de guildhalls
-      );
-
-      // Pequeno delay entre as requisições de casas e guildhalls
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Buscar guildhalls
-      const guildhallsHtml = await fetchHousesPageForCity(
-        serverName,
-        city,
-        "guildhalls"
-      );
-      const cityGuildhalls = helper.houses(
-        guildhallsHtml,
-        serverName,
-        generateServerId(serverName),
-        true // é busca específica de guildhalls
-      );
-
-      const totalFound = cityHouses.length + cityGuildhalls.length;
-
-      if (totalFound > 0) {
-        allHouses.push(...cityHouses, ...cityGuildhalls);
-        broadcast(
-          `  📍 ${city}: ${cityHouses.length} casas + ${cityGuildhalls.length} guildhalls = ${totalFound} total`,
-          "neutral"
+  // Criar tasks para todas as requisições de uma vez (casas + guildhalls por cidade)
+  const cityTasks = TIBIA_CITIES.flatMap((city) => [
+    // Task para casas regulares
+    async () => {
+      try {
+        const housesHtml = await fetchHousesPageForCity(
+          serverName,
+          city,
+          "houses"
         );
+        return helper.houses(housesHtml, serverName, serverId, false);
+      } catch (error) {
+        broadcast(`  ❌ Erro coletando casas em ${city}: ${error}`, "fail");
+        return [];
       }
-
-      // Pequeno delay entre cidades para não sobrecarregar o servidor
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    } catch (error) {
-      broadcast(`  ❌ Erro em ${city}: ${error}`, "fail");
+    },
+    // Task para guildhalls
+    async () => {
+      try {
+        const guildhallsHtml = await fetchHousesPageForCity(
+          serverName,
+          city,
+          "guildhalls"
+        );
+        return helper.houses(guildhallsHtml, serverName, serverId, true);
+      } catch (error) {
+        broadcast(
+          `  ❌ Erro coletando guildhalls em ${city}: ${error}`,
+          "fail"
+        );
+        return [];
+      }
     }
-  }
+  ]);
+
+  // Executar todas as requisições em batches paralelos inteligentes
+  const results = await batchPromises(cityTasks);
+
+  // Combinar todos os resultados
+  const allHouses: HouseObject[] = results.flat();
+
+  // Agrupar resultados por cidade para logging mais limpo
+  const citiesStats: Record<string, { houses: number; guildhalls: number }> =
+    {};
+
+  TIBIA_CITIES.forEach((city, index) => {
+    const housesResult = results[index * 2] || [];
+    const guildhallsResult = results[index * 2 + 1] || [];
+    const totalFound = housesResult.length + guildhallsResult.length;
+
+    if (totalFound > 0) {
+      citiesStats[city] = {
+        houses: housesResult.length,
+        guildhalls: guildhallsResult.length
+      };
+    }
+  });
+
+  // Log das estatísticas por cidade
+  Object.entries(citiesStats).forEach(([city, stats]) => {
+    broadcast(
+      `  📍 ${city}: ${stats.houses} casas + ${stats.guildhalls} guildhalls = ${
+        stats.houses + stats.guildhalls
+      } total`,
+      "neutral"
+    );
+  });
 
   return allHouses;
 };
