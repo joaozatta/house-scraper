@@ -3,3 +3,7 @@ node_modules
 dist/
 Output/
 .env
+
+# Drizzle
+drizzle/
+.drizzle
