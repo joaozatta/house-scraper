@@ -1,6 +1,6 @@
 # house-scraper 🏠
 
-Scraper completo para coletar dados de todas as casas de todos os servidores do Tibia, cobrindo todas as 19 cidades do jogo.
+Scraper completo para coletar dados de todas as casas de todos os servidores do Tibia, cobrindo todas as 19 cidades do jogo. Suporta tanto salvamento em arquivos JSON quanto persistência em banco PostgreSQL.
 
 ## 🎯 Objetivo
 
@@ -19,24 +19,28 @@ Coletar informações detalhadas sobre **todas as casas de todos os servidores d
 ```
 ├── Output/
 │   └── servers/         # JSON por servidor (95 arquivos)
+├── drizzle/             # Migrações do banco de dados
 ├── src/
 │   ├── Constants/       # Configurações de requests
+│   ├── database/        # Schema e operações do PostgreSQL
 │   ├── Helpers/         # Parsers HTML com Cheerio
 │   ├── Scripts/
-│   │   └── ScrapHouses/ # Script principal de coleta
+│   │   └── ScrapHouses/ # Scripts de coleta (JSON + DB)
 │   ├── logging/         # Sistema de logging customizado
 │   ├── services/        # Cliente HTTP
 │   ├── types/           # Tipos TypeScript
 │   └── utils/           # Utilitários (retry, batch, etc.)
+├── drizzle.config.ts    # Configuração do Drizzle ORM
 └── package.json
 ```
 
 ## 🚀 Funcionalidades
 
 - **`Output/servers/`**: Um arquivo JSON para cada servidor do Tibia (95 arquivos)
+- **`database/`**: Integração com PostgreSQL via Drizzle ORM para persistência
 - **`Constants/`**: Configurações de rate limiting e timeouts
 - **`Helpers/`**: Parsers especializados para HTML do Tibia (casas e servidores)
-- **`Scripts/ScrapHouses/`**: Script principal que coleta todas as casas de todos os servidores
+- **`Scripts/ScrapHouses/`**: Dois modos de operação (JSON + PostgreSQL)
 - **`logging/`**: Sistema de logging colorido com progresso e ETA
 - **`services/`**: Cliente HTTP com headers anti-Cloudflare
 - **`types/`**: Interfaces TypeScript e constantes (19 cidades do Tibia)
@@ -46,13 +50,21 @@ Coletar informações detalhadas sobre **todas as casas de todos os servidores d
 
 ### `npm run scrap:houses`
 
-**Script principal** - Coleta dados de casas de **todos os servidores e todas as cidades**.
+**Script principal** - Coleta dados de casas de **todos os servidores e todas as cidades** e salva em **arquivos JSON**.
 
 ```bash
 npm run scrap:houses
 ```
 
-**Processo:**
+### `npm run scrap:houses:db`
+
+**Script com banco de dados** - Coleta dados de casas de **todos os servidores e todas as cidades** e salva no **PostgreSQL**.
+
+```bash
+npm run scrap:houses:db
+```
+
+**Processo (ambos os modos):**
 
 1. 🔄 Busca lista atualizada de servidores do Tibia (95 servidores)
 2. 🌐 Para cada servidor, acessa páginas de **todas as 19 cidades**:
@@ -60,27 +72,55 @@ npm run scrap:houses
    - Edron, Farmine, Gray Beach, Issavi, Kazordoon
    - Liberty Bay, Moonfall, Port Hope, Rathleton, Silvertides
    - Svargrond, Thais, Venore, Yalahar
-3. 🏠 Extrai dados detalhados de cada casa:
-   - Nome e ID da casa
+3. 🏠 Para cada cidade, busca separadamente:
+   - **Casas regulares** (houses)
+   - **Guildhalls** (guildhalls)
+4. 📋 Extrai dados detalhados de cada propriedade:
+   - Nome e ID da casa/guildhall
    - Servidor e cidade
    - Tamanho (sqm) e aluguel mensal
    - Status (alugada/leilão/disponível)
    - Lance atual e fim do leilão (se aplicável)
-   - Tipo (casa regular/guildhall)
    - URL direta para visualização
-4. 💾 Salva dados por servidor em tempo real
-5. 📊 Mostra progresso detalhado com ETA
+5. 💾 Salva dados:
+   - **JSON**: Arquivo por servidor em `Output/servers/`
+   - **Banco**: Tabelas relacionais no PostgreSQL
+6. 📊 Mostra progresso detalhado com ETA
 
-**Saídas:**
+**Saídas do `scrap:houses`:**
 
 - `Output/servers/[ServerName].json` - Um arquivo por servidor (95 arquivos)
 - **Tempo aproximado:** 45-60 minutos para coleta completa (incluindo guildhalls)
 - **Volume de dados:** ~88,000 casas, ~927 por servidor
 
+**Saídas do `scrap:houses:db`:**
+
+- Dados persistidos no PostgreSQL em tabelas estruturadas
+- Controle de execuções com metadados e estatísticas
+- Separação entre casas normais e guildhalls
+- **Tempo aproximado:** 45-60 minutos para coleta completa
+- **Volume de dados:** ~88,000 propriedades no banco
+
+### Scripts de Banco de Dados
+
+```bash
+# Gerar migrações do banco
+npm run db:generate
+
+# Aplicar mudanças no schema
+npm run db:push
+
+# Interface visual do banco (Drizzle Studio)
+npm run db:studio
+
+# Executar migrações
+npm run db:migrate
+```
+
 ### Outros Scripts
 
 ```bash
-# Servidor local para visualizar dados coletados
+# Servidor local para visualizar dados JSON coletados
 npm run dev
 
 # Limpeza e formatação
@@ -198,22 +238,85 @@ cd house-scraper
 npm install
 ```
 
-### 2. Execução Completa
+### 2. Configuração (Para uso com banco)
+
+#### Requisitos:
+
+- PostgreSQL 12+ (local ou cloud: Neon, Supabase, Railway, etc.)
+- Node.js 18+
+
+Crie um arquivo `.env` baseado no `env.example`:
 
 ```bash
-# Executar scraping completo (todos os servidores e cidades + guildhalls)
+cp env.example .env
+```
+
+Configure a `DATABASE_URL` com sua connection string do PostgreSQL:
+
+```env
+NODE_ENV=development
+DATABASE_URL=postgresql://usuario:senha@host:5432/banco?sslmode=require
+```
+
+**Exemplos de connection strings:**
+
+```env
+# Neon.tech
+DATABASE_URL=postgresql://user:pass@ep-xxx.us-east-1.aws.neon.tech/neondb?sslmode=require
+
+# Supabase
+DATABASE_URL=postgresql://postgres:pass@db.xxx.supabase.co:5432/postgres
+
+# PostgreSQL local
+DATABASE_URL=postgresql://postgres:senha@localhost:5432/tibia_houses
+```
+
+### 3. Setup do Banco (Opcional)
+
+```bash
+# Aplicar schema no banco
+npm run db:push
+
+# Ou executar migrações
+npm run db:migrate
+```
+
+### 4. Execução Completa
+
+**Modo JSON (padrão):**
+
+```bash
+# Executar scraping e salvar em arquivos JSON
 # ⚠️ Duração: ~45-60 minutos
 npm run scrap:houses
 ```
 
-**Output esperado:**
+**Modo Banco de Dados:**
+
+```bash
+# Executar scraping e salvar no PostgreSQL
+# ⚠️ Duração: ~45-60 minutos
+npm run scrap:houses:db
+```
+
+**Output esperado (JSON):**
 
 - 95 arquivos JSON em `Output/servers/`
-- ~95,000+ propriedades coletadas (casas + guildhalls)
+- ~88,000+ propriedades coletadas (casas + guildhalls)
 - Progresso em tempo real com ETA
 - Estatísticas detalhadas por servidor
 
-### 3. Visualização dos Dados
+**Output esperado (Banco):**
+
+- Dados estruturados no PostgreSQL
+- Tabelas: `servers`, `towns`, `houses`, `guildhalls`, `scraping_runs`, `server_stats`
+- Controle de execuções com metadados e rastreabilidade
+- Upsert automático (atualiza dados existentes)
+- Índices otimizados para consultas rápidas
+
+### 5. Visualização dos Dados
+
+**Dados JSON:**
 
 ```bash
 # Servidor local para navegar pelos dados coletados
@@ -221,7 +324,15 @@ npm run scrap:houses
 npm run dev
 ```
 
-### 4. Manutenção
+**Dados do Banco:**
+
+```bash
+# Interface visual do Drizzle Studio
+# 🌐 Acesse: https://local.drizzle.studio
+npm run db:studio
+```
+
+### 6. Manutenção
 
 ```bash
 # Limpeza completa
@@ -294,6 +405,8 @@ npm run format
 
 ### Estatísticas Reais da Última Coleta:
 
+**Modo JSON:**
+
 ```
 📊 Coleta Completa - Tibia Houses:
   🕒 Duração: 31m 50s
@@ -302,9 +415,22 @@ npm run format
   🏘️ Alugadas: 49,583 (56%)
   🔨 Em leilão: 38,482 (44%)
   🆓 Disponíveis: 0 (0%)
-  🏛️ Guildhalls: Em análise
   📁 Arquivos gerados: 95 (um por servidor)
   🏙️ Cidades cobertas: 19 por servidor
+```
+
+**Modo Banco:**
+
+```
+📊 Coleta Completa - PostgreSQL:
+  🕒 Duração: 35m 12s
+  🌍 Servidores: 95 processados
+  🏠 Casas normais: ~75,000
+  🏛️ Guildhalls: ~13,000
+  💾 Total no banco: ~88,000+ registros
+  📊 Execução ID: #12 (rastreável)
+  🏙️ Cidades: 19 por servidor (1,805 total)
+  🔄 Upserts realizados: 100% dados atualizados
 ```
 
 ## 🛡️ Características Técnicas
@@ -312,9 +438,10 @@ npm run format
 ### 🚀 Performance e Escala
 
 - **Cobertura completa**: 95 servidores × 19 cidades × 2 tipos = 3,610 requests por coleta
-- **Volume de dados**: ~95,000+ propriedades por execução completa (casas + guildhalls)
-- **Processamento paralelo**: Servidores processados sequencialmente, cidades em batch
-- **Tempo otimizado**: ~45-60 minutos para coleta completa (incluindo guildhalls)
+- **Volume de dados**: ~88,000+ propriedades por execução completa (casas + guildhalls)
+- **Processamento sequencial**: Um servidor por vez para evitar sobrecarga
+- **Rate limiting**: 2s entre requests, 1s entre tipos (casas/guildhalls)
+- **Tempo otimizado**: ~45-60 minutos para coleta completa
 
 ### 🔒 Segurança e Estabilidade
 
@@ -333,10 +460,19 @@ npm run format
 
 ### 💾 Armazenamento e Estrutura
 
+**Modo JSON:**
+
 - **Dados incrementais**: Salvamento por servidor em tempo real
 - **Estrutura otimizada**: JSON organizado com metadados e estatísticas
 - **Ordenação consistente**: Casas ordenadas por ID para facilitar comparações
 - **Timestamps completos**: ISO string + Unix timestamp para rastreabilidade
+
+**Modo Banco de Dados:**
+
+- **PostgreSQL + Drizzle ORM**: Schema tipado e migrações automáticas
+- **Tabelas relacionais**: Separação entre servidores, cidades, casas e guildhalls
+- **Controle de execuções**: Rastreamento de coletas com metadados
+- **Índices otimizados**: Performance para consultas complexas
 
 ## 🎯 Casos de Uso
 
@@ -348,6 +484,33 @@ Este scraper é ideal para:
 - **APIs de dados** para aplicações relacionadas ao Tibia
 - **Dashboards** de estatísticas de casas
 - **Alertas automáticos** para casas específicas
+- **Business Intelligence** com dados estruturados no PostgreSQL
+- **Análises históricas** com controle de execuções
+- **Relatórios automatizados** usando SQL
+
+## 🏗️ Schema do Banco de Dados
+
+### Tabelas Principais
+
+```sql
+-- Servidores do Tibia
+servers: id, server_id, name, location, pvp_type, battleye, experimental
+
+-- Cidades do jogo
+towns: id, name
+
+-- Casas normais
+houses: id, house_id, name, server_id, town_id, size, rent, status, current_bid, auction_end, url
+
+-- Guildhalls
+guildhalls: id, guildhall_id, name, server_id, town_id, size, rent, status, current_bid, auction_end, url
+
+-- Controle de execuções
+scraping_runs: id, started_at, completed_at, total_houses, total_guildhalls, total_servers, status
+
+-- Estatísticas por servidor
+server_stats: id, server_id, total_houses, total_guildhalls, rented_houses, auctioned_houses, avg_rent
+```
 
 ## 📈 Melhorias Implementadas
 
@@ -356,4 +519,6 @@ Este scraper é ideal para:
 - ✅ **Guildhalls incluídas**: Busca separada e detecção precisa de guildhalls
 - ✅ **Bypass Cloudflare**: Headers otimizados para estabilidade
 - ✅ **Logging avançado**: Progresso em tempo real com ETA
+- ✅ **Persistência em banco**: PostgreSQL com Drizzle ORM
+- ✅ **Duplo modo**: JSON files + Database com schemas relacionais
 - ✅ **Estrutura limpa**: Código otimizado e documentado
