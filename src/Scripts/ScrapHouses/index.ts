@@ -2,12 +2,7 @@ import { HouseList, ServerList } from "Helpers";
 import { HttpClient } from "services";
 import { broadcast, coloredText, Timer, TrackETA } from "../../logging";
 import { retryWrapper, batchPromises } from "utils";
-import {
-  HouseObject,
-  PartialServerObject,
-  TIBIA_CITIES,
-  TibiaTown
-} from "types";
+import { HouseObject, TIBIA_CITIES, TibiaTown } from "types";
 import * as fs from "fs";
 import * as path from "path";
 
